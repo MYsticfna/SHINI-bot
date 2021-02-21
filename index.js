@@ -1,45 +1,101 @@
-const Discord = require("discord.js");
-const fs = require("fs");
-const config = require("./config.json");
-const prefix = config.prefix;
-const bot = new Discord.Client({
-  disableMentions: "everyone",
-  partials: ["REACTION"],
-});
-const mongoose = require("mongoose");
-bot.prefix = prefix;
-bot.commands = new Discord.Collection();
-bot.aliases = new Discord.Collection();
-bot.snipes = new Discord.Collection();
-bot.events = new Discord.Collection();
-bot.categories = fs.readdirSync("./commands/");
-const token = require(`./token.json`);
-const message = require("./events/guild/message");
-mongoose.connect(token.Mongo, {
-  useUnifiedTopology: true,
-  useNewUrlParser: true,
-});
-["command", "server"].forEach((handler) => {
-  require(`./handlers/${handler}`)(bot);
-});
-bot.on("ready", () => {
-  require("./events/client/ready")(bot);
-});
-bot.on("message", async (message) => {
-  message.member; //-- GuildMember based
-  message.author; //-- User based
-  require("./events/guild/message")(bot, message);
-});
-bot.on("messageUpdate", async (oldMessage, newMessage) => {
-  require("./events/guild/messageUpdate")(oldMessage, newMessage);
-});
-bot.on("messageDelete", async (message) => {
-  require("./events/guild/messageDelete")(message);
-});
-bot.on("messageReactionAdd", (reaction, user) => {
-  require("./events/guild/messageReactionAdd")(reaction, user);
-});
-bot.on("messageReactionRemove", (reaction, user) => {
-  require("./events/guild/messageReactionRemove")(reaction, user);
-});
-bot.login(token.Token);
+const Discord = require('discord.js')
+const client = new Discord.Client()
+
+const config = require('./config.json')
+const command = require('./command.js')
+
+client.on('ready', () => {
+  console.log('The client is ready!')
+  command(client, ['ping', 'test'], (message) => {
+    message.channel.send('Pong!')
+  })
+
+  command(client, 'servers', (message) => {
+    client.guilds.cache.forEach((guild) => {
+      message.channel.send(
+        `${guild.name} has a total of ${guild.memberCount} members`
+      )
+    })
+  })
+
+  command(client, ['cc', 'clearchannel'], (message) => {
+    if (message.member.hasPermission('ADMINISTRATOR')) {
+      message.channel.messages.fetch().then((results) => {
+        message.channel.bulkDelete(results)
+      })
+    }
+  })
+
+  command(client, 'status', (message) => {
+    const content = message.content.replace('!status ', '')
+    // "!status hello world" -> "hello world"
+
+    client.user.setPresence({
+      activity: {
+        name: content,
+        type: 0,
+      },
+    })
+  })
+  command(client, 'createtextchannel', (message) => {
+    const name = message.content.replace('!createtextchannel ', '')
+
+    message.guild.channels
+      .create(name, {
+        type: 'text',
+      })
+      .then((channel) => {
+        const categoryId = '812032719801417829'
+        channel.setParent(categoryId)
+      })
+  })
+
+  command(client, 'createvoicechannel', (message) => {
+    const name = message.content.replace('!createvoicechannel ', '')
+
+    message.guild.channels
+      .create(name, {
+        type: 'voice',
+      })
+      .then((channel) => {
+        const categoryId = '812032719801417829'
+        channel.setParent(categoryId)
+        channel.setUserLimit(10)
+      })
+    })
+    command(client, 'serverinfo', (message) => {
+      const { guild } = message
+  
+      const { name, region, memberCount, owner, afkTimeout } = guild
+      const icon = guild.iconURL()
+  
+      const embed = new Discord.MessageEmbed()
+        .setTitle(`Server info for "${name}"`)
+        .setThumbnail(icon)
+        .addFields(
+          {
+            name: 'Region',
+            value: region,
+          },
+          {
+            name: 'Members',
+            value: memberCount,
+          },
+          {
+            name: 'Owner',
+            value: owner.user.tag,
+          },
+          {
+            name: 'AFK Timeout',
+            value: afkTimeout / 60,
+          }
+        )
+  
+      message.channel.send(embed)
+        })
+        command(client, ['inv', 'invite'], (message) => {
+          message.channel.send('https://discord.com/oauth2/authorize?client_id=812036727740170240&permissions=8&scope=bot')
+        })
+      })
+  
+client.login(config.token)
